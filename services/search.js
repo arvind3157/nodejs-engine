@@ -1,76 +1,11 @@
+const preprocessor = require('./preprocess');
+const utils = require('./utilities');
+
 // The sample data to be exported from data.json
 let summaries = require('../data/data.json').summaries;
 let titles = require('../data/data.json').titles;
-
-/**
- * exclude words that do not effect the semantic of the text
- * Note: This is not exhaustive list of exclude words
- */
-
-let exclude_words =
-    [
-        'is','i','you','us','about', 'on', 'in',
-        'upon', 'for', 'to','me', 'we','my','he','she',
-        'should','than','that','yet','as','no','at','be','too',
-        'more','was', 'also', 'it','by','which'
-    ];
-
-/**
- * Map to store token in the below format
- {
-    'token':[[record_id1,record_id2],[frequency,frequency]]
- }
- */
-
-let map = new Map(); // global map variable to store inverted index
-
-function preProcess(summaries, titles) {
-    let s = JSON.parse(JSON.stringify(summaries)); // deep cloning to avoid modification of the original array
-    let t = JSON.parse(JSON.stringify(titles));
-    for(let i =0;i<s.length;i++) { // indexing summary tokens
-        let arr = s[i].summary.toLowerCase().split(' '); // converting to all lowercase
-        for(let j=0;j<arr.length;j++) {
-            if(exclude_words.indexOf(arr[j]) === -1) { // excluding index words
-                if(map.has(arr[j])) { // if map already has the tokens
-                    let aa = map.get(arr[j]); // get the token array
-                    if(aa[0].indexOf(s[i].id)<0) { // The given document id is listed or not
-                        aa[0].push(s[i].id); // if not, create entry
-                        aa[1].push(1); // mark the count as 1
-                    } else {
-                        let index = aa[0].indexOf(s[i].id); // if document id already found
-                        let count = aa[1][index]; // get the count
-                        count = count+1; // increament the count
-                        aa[1][index] = count;
-                    }
-                } else {
-                    map.set(arr[j],[[s[i].id],[1]]);
-                }
-            }
-        }
-    }
-    for(let i=0;i<t.length;i++) { // indexing title tokens, follows the similar logic to index title as well
-        let arr = t[i].toLowerCase().split(' ');
-        for(let k=0;k<arr.length;k++) {
-            if(exclude_words.indexOf(arr[k]) === -1) {
-                if(map.has(arr[k])) {
-                    let aa = map.get(arr[k]);
-                    if(aa[0].indexOf(i)<0) {
-                        aa[0].push(i);
-                        aa[1].push(1);
-                    } else {
-                        let index = aa[0].indexOf(i);
-                        let count = aa[1][index];
-                        count = count+1;
-                        aa[1][index] = count;
-                    }
-                } else {
-                    map.set(arr[k],[[i],[1]]);
-                }
-            }
-        }
-    }
-    return map;
-}
+preprocessor.preProcess(summaries, titles); // Preprocess the data when module loads
+let map = preprocessor.map;
 
 const search = (query, k=5) => {
     let a = query.split(' ');
@@ -81,7 +16,7 @@ const search = (query, k=5) => {
             ids = [...ids, ...arr]
         }
     }
-    ids = ids.filter(unique);
+    ids = ids.filter(utils.unique);
     let result = [];
     for(let k=0;k<ids.length;k++) {
         result.push(summaries[ids[k]])
@@ -90,7 +25,7 @@ const search = (query, k=5) => {
         result[i].title = titles[result[i].id]
     }
     result = applyScore(result, query); // Attach score to each result
-    result = sortByScore(result); // Sort result by score
+    result = utils.sortBy(result,'score'); // Sort result by score
     return result.slice(0, k); // Pick top k relevant result
 }
 
@@ -116,18 +51,6 @@ function applyScore(result, str) {
     return result;
 }
 
-// Sort result by score
-function sortByScore(result) {
-    return result.sort((a,b)=> a.score < b.score ? 1 : -1)
-}
-
-function unique(value, index, self) {
-    return self.indexOf(value) === index;
-}
-
-preProcess(summaries, titles); // Preprocess the data when module loads
-
 module.exports = {
-    search,
-    preProcess
+    search
 }
