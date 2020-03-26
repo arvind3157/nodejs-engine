@@ -4,7 +4,7 @@ This service addresses first 2 tasks.
 1. Create service to search the text
 2. Create Rest API to query using endpoint
 
-# Steps to to setup
+# Setup steps
 
 1. Clone the repository
 2. Navigate inside project repository
